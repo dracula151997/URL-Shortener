@@ -28,6 +28,8 @@ class ShortenedUrl < ApplicationRecord
     through: :visits, 
     source: :visitor
 
+    has_many :tag_topics, class_name: :TagTopic, foreign_key: "reference_id"
+
 
     def self.random_code
         loop do
@@ -57,5 +59,28 @@ class ShortenedUrl < ApplicationRecord
             .where('created_at > ?', 10.minutes.ago)
             .distinct
             .count
+    end
+
+    private
+
+    def no_spamming
+        urls_in_last_minute = ShortenedUrl
+            .where('created_at >= ?', 1.minute.ago)
+            .where(user_id: user_id)
+            .length
+
+            errors[:maximux] << 'of five short urls per minute' if urls_in_last_minute >= 5
+    end
+
+    def nonpremium_max
+        return if User.find(self.user_id).premium
+
+        number_of_urls = ShortenedUrl
+            .where(user_id: user_id)
+            .length
+
+        if number_of_urls >= 5
+            errors[:Only] << 'premium members can create more than 5 short urls.' 
+        end
     end
 end
